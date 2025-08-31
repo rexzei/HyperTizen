@@ -25,22 +25,29 @@ function send(json) {
 }
 
 function onOpen() {
-    document.getElementById('status').innerHTML = 'Connected';
+    updateStatus('Connected to TV WebSocket');
     document.getElementById('enabled').onchange = (e) => {
         if (!canEnable) {
-            alert('Please select a device first');
+            updateStatus('Error: Please select a Hyperion server first');
             return e.target.checked = false;
         }
+        updateStatus('Enabling/Disabling capture...');
         send({ event: events.SetConfig, key: 'enabled', value: e.target.checked.toString() });
     }
 
     // LÄGG TILL DIN HYPERION-SERVER AUTOMATISKT
+    updateStatus('Adding manual Hyperion server...');
     addManualHyperionServer();
 
+    updateStatus('Reading configuration...');
     send({ event: events.ReadConfig, key: 'rpcServer' });
     send({ event: events.ReadConfig, key: 'enabled' });
+
+    updateStatus('Scanning for SSDP devices...');
     send({ event: events.ScanSSDP });
+
     setInterval(() => {
+        updateStatus('Rescanning SSDP devices...');
         send({ event: events.ScanSSDP });
     }, 10000);
 }
@@ -53,7 +60,10 @@ function addManualHyperionServer() {
 
     const url = `ws://${hyperionIP}:${hyperionPort}`;
 
+    updateStatus(`Adding server: ${url}`);
+
     if (ssdpDevices.some(d => d.url === url)) {
+        updateStatus('Server already exists in list');
         return;
     }
 
@@ -64,6 +74,15 @@ function addManualHyperionServer() {
     `;
 
     ssdpDevices.push({ url, friendlyName: serverName });
+    updateStatus(`Successfully added: ${serverName}`);
+}
+
+// NY FUNKTION: Uppdatera status med timestamp
+function updateStatus(message) {
+    const now = new Date();
+    const timestamp = now.toLocaleTimeString();
+    document.getElementById('status').innerHTML = `[${timestamp}] ${message}`;
+    console.log(`HyperTizen Debug [${timestamp}]: ${message}`);
 }
 
 function onMessage(data) {
