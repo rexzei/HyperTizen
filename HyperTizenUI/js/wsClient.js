@@ -33,6 +33,10 @@ function onOpen() {
         }
         send({ event: events.SetConfig, key: 'enabled', value: e.target.checked.toString() });
     }
+
+    // LÄGG TILL DIN HYPERION-SERVER AUTOMATISKT
+    addManualHyperionServer();
+
     send({ event: events.ReadConfig, key: 'rpcServer' });
     send({ event: events.ReadConfig, key: 'enabled' });
     send({ event: events.ScanSSDP });
@@ -41,14 +45,35 @@ function onOpen() {
     }, 10000);
 }
 
+// NY FUNKTION: Lägg till din Hyperion automatiskt
+function addManualHyperionServer() {
+    const hyperionIP = '192.168.50.141';
+    const hyperionPort = '19444';
+    const serverName = 'Min Hyperion Server';
+
+    const url = `ws://${hyperionIP}:${hyperionPort}`;
+
+    if (ssdpDevices.some(d => d.url === url)) {
+        return;
+    }
+
+    document.getElementById('ssdpItems').innerHTML += `
+    <div class="ssdpItem" data-uri="${url}" data-friendlyName="${serverName}" tabindex="0" onclick="setRPC('${url}')">
+        <a>${serverName} (Manuell)</a>
+    </div>
+    `;
+
+    ssdpDevices.push({ url, friendlyName: serverName });
+}
+
 function onMessage(data) {
     const msg = JSON.parse(data.data);
-    switch(msg.Event) {
+    switch (msg.Event) {
         case events.ReadConfigResult:
-            if(msg.key === 'rpcServer' && !msg.error) {
+            if (msg.key === 'rpcServer' && !msg.error) {
                 canEnable = true;
                 document.getElementById('ssdpDeviceTitle').innerText = `SSDP Devices (Currently Connected to ${msg.value})`;
-            } else if(msg.key === 'enabled' && !msg.error) {
+            } else if (msg.key === 'enabled' && !msg.error) {
                 document.getElementById('enabled').checked = msg.value === 'true';
             }
             break;
@@ -59,7 +84,7 @@ function onMessage(data) {
                 if (ssdpDevices.some(d => d.url === url)) {
                     continue;
                 }
-                
+
                 const friendlyName = device.FriendlyName;
                 document.getElementById('ssdpItems').innerHTML += `
                 <div class="ssdpItem" data-uri="${url}" data-friendlyName="${friendlyName}" tabindex="0" onclick="setRPC('${url}')">
@@ -72,7 +97,7 @@ function onMessage(data) {
     }
 }
 
-window.setRPC = (url) =>  {
+window.setRPC = (url) => {
     canEnable = true;
     send({ event: events.SetConfig, key: 'rpcServer', value: url });
 }
